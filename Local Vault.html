@@ -1,0 +1,2078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>File Vault — Password Protected Storage</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Syne:wght@400;500;600;700;800&display=swap');
+
+  :root {
+    --bg: #0a0c0f;
+    --bg2: #10141a;
+    --bg3: #161c24;
+    --bg4: #1e2730;
+    --border: #252e3a;
+    --border2: #2e3d4f;
+    --text: #e8edf2;
+    --text2: #8fa3b8;
+    --text3: #4d6070;
+    --accent: #00d4aa;
+    --accent2: #00a882;
+    --accent-dim: rgba(0,212,170,0.12);
+    --accent-glow: rgba(0,212,170,0.25);
+    --red: #ff4757;
+    --red-dim: rgba(255,71,87,0.12);
+    --yellow: #ffc048;
+    --yellow-dim: rgba(255,192,72,0.12);
+    --blue: #4dabf7;
+    --blue-dim: rgba(77,171,247,0.12);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --font-main: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --transition: 0.18s ease;
+    --theme-transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  /* ─── LIGHT MODE ─── */
+  html.light {
+    --bg: #f0f2f5;
+    --bg2: #ffffff;
+    --bg3: #f7f8fa;
+    --bg4: #eceef2;
+    --border: #dde1e8;
+    --border2: #c8cdd8;
+    --text: #0f1923;
+    --text2: #4a5568;
+    --text3: #9aa3b0;
+    --accent: #009e80;
+    --accent2: #007d65;
+    --accent-dim: rgba(0,158,128,0.10);
+    --accent-glow: rgba(0,158,128,0.18);
+    --red: #e03445;
+    --red-dim: rgba(224,52,69,0.10);
+    --yellow: #d4900a;
+    --yellow-dim: rgba(212,144,10,0.10);
+    --blue: #2d84d4;
+    --blue-dim: rgba(45,132,212,0.10);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { font-size: 16px; scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-main);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+    transition: var(--theme-transition);
+  }
+
+  /* Background grid texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,170,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,170,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  html.light body::before {
+    background-image:
+      linear-gradient(rgba(0,158,128,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,158,128,0.05) 1px, transparent 1px);
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: -40%;
+    right: -20%;
+    width: 70vw;
+    height: 70vw;
+    background: radial-gradient(circle, rgba(0,212,170,0.05) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app-wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+    min-height: 100vh;
+  }
+
+  /* ─── HEADER ─── */
+  .header {
+    text-align: center;
+    margin-bottom: 48px;
+    animation: fadeSlideDown 0.6s ease both;
+  }
+
+  .header-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    background: var(--accent-dim);
+    border: 1.5px solid var(--accent);
+    border-radius: 20px;
+    margin-bottom: 20px;
+    position: relative;
+    box-shadow: 0 0 40px var(--accent-glow);
+  }
+
+  .header-icon svg { color: var(--accent); }
+
+  .header h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .header h1 span { color: var(--accent); }
+
+  .header p {
+    color: var(--text2);
+    font-size: 0.95rem;
+    font-weight: 400;
+    font-family: var(--font-mono);
+    letter-spacing: 0.01em;
+  }
+
+  /* ─── TABS ─── */
+  .tabs {
+    display: flex;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 5px;
+    margin-bottom: 28px;
+    animation: fadeSlideDown 0.6s 0.1s ease both;
+  }
+
+  .tab-btn {
+    flex: 1;
+    padding: 11px 20px;
+    border: none;
+    background: transparent;
+    color: var(--text2);
+    font-family: var(--font-main);
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    letter-spacing: 0.01em;
+  }
+
+  .tab-btn svg { flex-shrink: 0; }
+
+  .tab-btn:hover { color: var(--text); background: var(--bg3); }
+
+  .tab-btn.active {
+    background: var(--accent);
+    color: #000;
+  }
+
+  /* ─── PANEL ─── */
+  .panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px;
+    animation: fadeSlideUp 0.5s 0.15s ease both;
+  }
+
+  .panel-section { display: none; }
+  .panel-section.active { display: block; }
+
+  /* ─── DROP ZONE ─── */
+  .drop-zone {
+    border: 2px dashed var(--border2);
+    border-radius: var(--radius);
+    padding: 48px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--transition);
+    position: relative;
+    background: var(--bg3);
+    margin-bottom: 24px;
+  }
+
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .drop-zone-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    background: var(--bg4);
+    border: 1px solid var(--border2);
+    border-radius: 14px;
+    margin: 0 auto 16px;
+    color: var(--text3);
+    transition: all var(--transition);
+  }
+
+  .drop-zone:hover .drop-zone-icon,
+  .drop-zone.dragover .drop-zone-icon {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .drop-zone-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .drop-zone-sub {
+    font-size: 0.82rem;
+    color: var(--text3);
+    font-family: var(--font-mono);
+  }
+
+  /* ─── FILE INFO CHIP ─── */
+  .file-chip {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    margin-bottom: 24px;
+  }
+
+  .file-chip.visible { display: flex; }
+
+  .file-chip-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--accent);
+  }
+
+  .file-chip-info { flex: 1; min-width: 0; }
+
+  .file-chip-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+  }
+
+  .file-chip-meta {
+    font-size: 0.78rem;
+    color: var(--text3);
+    font-family: var(--font-mono);
+  }
+
+  .file-chip-remove {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: var(--bg4);
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all var(--transition);
+  }
+
+  .file-chip-remove:hover { background: var(--red-dim); color: var(--red); }
+
+  /* ─── FORM FIELDS ─── */
+  .field-group { margin-bottom: 20px; }
+
+  .field-label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text2);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .field-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .field-input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1.5px solid var(--border2);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.92rem;
+    outline: none;
+    transition: border-color var(--transition);
+  }
+
+  .field-input:focus { border-color: var(--accent); }
+  .field-input.error { border-color: var(--red); }
+  .field-input.success { border-color: var(--accent); }
+
+  .field-input.has-btn { padding-right: 48px; }
+
+  .field-eye-btn {
+    position: absolute;
+    right: 12px;
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: var(--text3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    transition: color var(--transition);
+  }
+
+  .field-eye-btn:hover { color: var(--text2); }
+
+  /* ─── PASSWORD STRENGTH ─── */
+  .strength-bar {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+    height: 3px;
+  }
+
+  .strength-seg {
+    flex: 1;
+    border-radius: 999px;
+    background: var(--border2);
+    transition: background 0.3s ease;
+  }
+
+  .strength-label {
+    font-size: 0.76rem;
+    font-family: var(--font-mono);
+    margin-top: 6px;
+    color: var(--text3);
+    text-align: right;
+  }
+
+  .strength-0 .strength-seg { background: var(--border2); }
+  .strength-1 .strength-seg:nth-child(1) { background: var(--red); }
+  .strength-2 .strength-seg:nth-child(-n+2) { background: var(--yellow); }
+  .strength-3 .strength-seg:nth-child(-n+3) { background: var(--yellow); }
+  .strength-4 .strength-seg { background: var(--accent); }
+
+  /* ─── MATCH INDICATOR ─── */
+  .field-hint {
+    font-size: 0.78rem;
+    font-family: var(--font-mono);
+    margin-top: 6px;
+  }
+  .field-hint.ok { color: var(--accent); }
+  .field-hint.err { color: var(--red); }
+
+  /* ─── BUTTON ─── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-main);
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all var(--transition);
+    letter-spacing: 0.01em;
+    padding: 13px 24px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+    width: 100%;
+  }
+
+  .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled { background: var(--border2); color: var(--text3); cursor: not-allowed; transform: none; }
+
+  .btn-secondary {
+    background: var(--bg3);
+    color: var(--text);
+    border: 1px solid var(--border2);
+    flex: 1;
+  }
+
+  .btn-secondary:hover { background: var(--bg4); border-color: var(--accent); color: var(--accent); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text2);
+    border: 1px solid var(--border);
+    flex: 1;
+  }
+
+  .btn-ghost:hover { background: var(--bg3); color: var(--text); }
+
+  /* ─── PROGRESS ─── */
+  .progress-wrap {
+    display: none;
+    margin-top: 20px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+  }
+
+  .progress-wrap.visible { display: block; }
+
+  .progress-label {
+    font-size: 0.8rem;
+    font-family: var(--font-mono);
+    color: var(--text2);
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .progress-bar-track {
+    height: 4px;
+    background: var(--border2);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 999px;
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  .progress-bar-fill.indeterminate {
+    width: 40%;
+    animation: indeterminate 1.2s linear infinite;
+  }
+
+  /* ─── ALERTS ─── */
+  .alert {
+    display: none;
+    align-items: flex-start;
+    gap: 12px;
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    margin-top: 20px;
+    font-size: 0.87rem;
+    line-height: 1.5;
+  }
+
+  .alert.visible { display: flex; }
+  .alert-icon { flex-shrink: 0; margin-top: 1px; }
+
+  .alert-success {
+    background: rgba(0,212,170,0.08);
+    border: 1px solid rgba(0,212,170,0.3);
+    color: var(--accent);
+  }
+
+  .alert-error {
+    background: var(--red-dim);
+    border: 1px solid rgba(255,71,87,0.3);
+    color: var(--red);
+  }
+
+  .alert-info {
+    background: var(--blue-dim);
+    border: 1px solid rgba(77,171,247,0.3);
+    color: var(--blue);
+  }
+
+  /* ─── DECRYPTION RESULT ─── */
+  .decrypt-result {
+    display: none;
+    animation: fadeSlideUp 0.4s ease both;
+  }
+
+  .decrypt-result.visible { display: block; }
+
+  .result-card {
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+
+  .result-card-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .result-file-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    background: var(--accent-dim);
+    border: 1.5px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    flex-shrink: 0;
+    font-size: 1.4rem;
+  }
+
+  .result-file-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+    word-break: break-all;
+  }
+
+  .result-file-meta {
+    font-size: 0.8rem;
+    color: var(--text3);
+    font-family: var(--font-mono);
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .meta-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg4);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.76rem;
+    font-family: var(--font-mono);
+    color: var(--text2);
+  }
+
+  .action-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  /* ─── PREVIEW ─── */
+  .preview-area {
+    display: none;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin-top: 16px;
+    max-height: 420px;
+  }
+
+  .preview-area.visible { display: block; }
+
+  .preview-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: var(--bg3);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .preview-title {
+    font-size: 0.8rem;
+    font-family: var(--font-mono);
+    color: var(--text3);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .preview-close {
+    background: none;
+    border: none;
+    color: var(--text3);
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition);
+  }
+
+  .preview-close:hover { color: var(--text); background: var(--bg4); }
+
+  .preview-content {
+    overflow: auto;
+    max-height: 360px;
+  }
+
+  .preview-text {
+    padding: 20px;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--text2);
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.7;
+  }
+
+  .preview-img {
+    display: block;
+    max-width: 100%;
+    max-height: 360px;
+    margin: 0 auto;
+    padding: 16px;
+    object-fit: contain;
+  }
+
+  .preview-pdf {
+    width: 100%;
+    height: 360px;
+    border: none;
+    display: block;
+  }
+
+  /* ─── THEME TOGGLE ─── */
+  .theme-toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 42px;
+    height: 42px;
+    border: 1.5px solid var(--border2);
+    border-radius: 10px;
+    background: var(--bg3);
+    color: var(--text2);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition);
+    flex-shrink: 0;
+  }
+
+  .theme-toggle:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+  }
+
+  .theme-toggle .icon-moon { display: block; }
+  .theme-toggle .icon-sun  { display: none; }
+  html.light .theme-toggle .icon-moon { display: none; }
+  html.light .theme-toggle .icon-sun  { display: block; }
+
+  .header-top {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  .header-center { flex: 1; text-align: center; }
+
+  /* ─── RENAME FIELD — stem + locked extension badge ─── */
+  .rename-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--bg4);
+    border: 1.5px solid var(--border2);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin-bottom: 12px;
+    transition: border-color var(--transition);
+  }
+
+  .rename-row:focus-within {
+    border-color: var(--accent);
+  }
+
+  .rename-label {
+    font-size: 0.72rem;
+    font-family: var(--font-mono);
+    color: var(--text3);
+    white-space: nowrap;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 500;
+    padding: 0 10px 0 14px;
+    border-right: 1px solid var(--border2);
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    background: var(--bg3);
+    flex-shrink: 0;
+  }
+
+  .rename-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 0.88rem;
+    min-width: 0;
+    padding: 11px 8px 11px 12px;
+  }
+
+  .rename-input::placeholder { color: var(--text3); }
+
+  /* Fixed extension badge — locked, not editable */
+  .rename-ext {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border-left: 1px solid var(--border2);
+    padding: 0 12px;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: 0.01em;
+    user-select: none;
+  }
+
+  .rename-reset {
+    width: 36px;
+    height: 100%;
+    min-height: 42px;
+    border: none;
+    border-left: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text3);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--transition);
+    flex-shrink: 0;
+    padding: 0;
+  }
+
+  .rename-reset:hover { color: var(--accent); background: var(--accent-dim); }
+
+  /* ─── ENCRYPT SUCCESS CARD ─── */
+  .enc-result-card {
+    display: none;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-top: 20px;
+    animation: fadeSlideUp 0.35s ease both;
+  }
+
+  .enc-result-card.visible { display: block; }
+
+  .enc-result-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .enc-result-tick {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--accent-dim);
+    border: 1.5px solid var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .enc-result-info { flex: 1; min-width: 0; }
+
+  .enc-result-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 3px;
+    word-break: break-all;
+  }
+
+  .enc-result-meta {
+    font-size: 0.77rem;
+    font-family: var(--font-mono);
+    color: var(--text3);
+  }
+
+  .enc-rename-label {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: var(--text3);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 7px;
+  }
+
+  .enc-download-btn {
+    margin-top: 12px;
+    width: 100%;
+  }
+
+  /* ─── RENAME SECTION ─── */
+  .rename-section {
+    margin-bottom: 12px;
+  }
+
+  /* smooth transitions on key elements */
+  .panel, .tabs, .file-chip, .drop-zone, .field-input,
+  .btn, .alert, .result-card, .preview-area, .sec-badge {
+    transition: background var(--transition), border-color var(--transition), color var(--transition), var(--theme-transition);
+  }
+  .security-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    justify-content: center;
+  }
+
+  .sec-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 0.73rem;
+    font-family: var(--font-mono);
+    color: var(--text3);
+    letter-spacing: 0.02em;
+  }
+
+  .sec-badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+
+  /* ─── DIVIDER ─── */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 28px 0;
+  }
+
+  .section-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ─── ANIMATIONS ─── */
+  @keyframes fadeSlideDown {
+    from { opacity: 0; transform: translateY(-16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes indeterminate {
+    0%   { transform: translateX(-150%); }
+    100% { transform: translateX(350%); }
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .spin { animation: spin 0.8s linear infinite; }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 600px) {
+    .app-wrapper { padding: 24px 14px 60px; }
+    .panel { padding: 20px 16px; }
+    .header h1 { font-size: 1.5rem; }
+    .action-row { flex-direction: column; }
+    .action-row .btn { flex: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app-wrapper">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-top">
+      <div class="header-center">
+        <div class="header-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            <circle cx="12" cy="16" r="1" fill="currentColor"/>
+          </svg>
+        </div>
+        <h1>File <span>Vault</span></h1>
+        <p>AES-256-GCM · PBKDF2 · Local-only encryption</p>
+      </div>
+      <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light/dark mode" title="Toggle light/dark mode">
+        <!-- Moon (shown in dark mode) -->
+        <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+        <!-- Sun (shown in light mode) -->
+        <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/>
+          <line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- TABS -->
+  <div class="tabs" role="tablist">
+    <button class="tab-btn active" id="tab-encrypt" onclick="switchTab('encrypt')" role="tab" aria-selected="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      Encrypt File
+    </button>
+    <button class="tab-btn" id="tab-decrypt" onclick="switchTab('decrypt')" role="tab" aria-selected="false">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2"/>
+        <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+        <path d="M15 2l1 1-1 1"/>
+      </svg>
+      Open Vault File
+    </button>
+  </div>
+
+  <!-- PANEL -->
+  <div class="panel">
+
+    <!-- ══════════════════════════════════════════
+         ENCRYPT TAB
+    ══════════════════════════════════════════ -->
+    <div class="panel-section active" id="section-encrypt">
+
+      <div class="section-title">Select file to encrypt</div>
+
+      <!-- Drop zone -->
+      <div class="drop-zone" id="enc-drop" ondragover="handleDragOver(event,'enc-drop')" ondragleave="handleDragLeave('enc-drop')" ondrop="handleDrop(event,'enc')">
+        <input type="file" id="enc-file-input" onchange="handleFileSelect(event,'enc')" aria-label="Select file to encrypt">
+        <div class="drop-zone-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <div class="drop-zone-title">Drop file here or click to browse</div>
+        <div class="drop-zone-sub">Any file type · Encrypted locally · Never uploaded</div>
+      </div>
+
+      <!-- File chip -->
+      <div class="file-chip" id="enc-file-chip">
+        <div class="file-chip-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+        </div>
+        <div class="file-chip-info">
+          <div class="file-chip-name" id="enc-chip-name">—</div>
+          <div class="file-chip-meta" id="enc-chip-meta">—</div>
+        </div>
+        <button class="file-chip-remove" onclick="clearFile('enc')" aria-label="Remove file">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="section-title">Set password</div>
+
+      <!-- Password -->
+      <div class="field-group">
+        <label class="field-label" for="enc-password">Password</label>
+        <div class="field-wrap">
+          <input class="field-input has-btn" type="password" id="enc-password" placeholder="Enter a strong password" oninput="updateStrength()" autocomplete="new-password">
+          <button class="field-eye-btn" onclick="toggleEye('enc-password',this)" aria-label="Toggle password visibility" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div class="strength-bar strength-0" id="strength-bar">
+          <div class="strength-seg"></div>
+          <div class="strength-seg"></div>
+          <div class="strength-seg"></div>
+          <div class="strength-seg"></div>
+        </div>
+        <div class="strength-label" id="strength-label">Enter a password</div>
+      </div>
+
+      <!-- Confirm Password -->
+      <div class="field-group">
+        <label class="field-label" for="enc-confirm">Confirm Password</label>
+        <div class="field-wrap">
+          <input class="field-input has-btn" type="password" id="enc-confirm" placeholder="Re-enter password" oninput="checkMatch()" autocomplete="new-password">
+          <button class="field-eye-btn" onclick="toggleEye('enc-confirm',this)" aria-label="Toggle password visibility" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div class="field-hint" id="match-hint"></div>
+      </div>
+
+      <!-- Encrypt Button -->
+      <button class="btn btn-primary" id="enc-btn" onclick="encryptFile()" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Encrypt &amp; Save .vault File
+      </button>
+
+      <!-- Progress -->
+      <div class="progress-wrap" id="enc-progress">
+        <div class="progress-label">
+          <span id="enc-progress-label">Encrypting…</span>
+          <span id="enc-progress-pct"></span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill indeterminate" id="enc-progress-bar"></div>
+        </div>
+      </div>
+
+      <!-- Alerts -->
+      <div class="alert alert-error" id="enc-error">
+        <div class="alert-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <span id="enc-error-msg">Error</span>
+      </div>
+
+      <!-- Encrypt success + rename card -->
+      <div class="enc-result-card" id="enc-result-card">
+        <div class="enc-result-header">
+          <div class="enc-result-tick">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="enc-result-info">
+            <div class="enc-result-title" id="enc-result-filename">—</div>
+            <div class="enc-result-meta" id="enc-result-meta">Encrypted · saved to disk</div>
+          </div>
+        </div>
+        <div class="enc-rename-label">Rename &amp; re-download</div>
+        <div class="rename-row" title="Edit name (extension is locked)">
+          <span class="rename-label">Save as</span>
+          <input class="rename-input" type="text" id="enc-rename-input" placeholder="vault filename" spellcheck="false" autocomplete="off">
+          <span class="rename-ext" id="enc-rename-ext">.vault</span>
+          <button class="rename-reset" onclick="resetEncRename()" title="Reset to original filename" aria-label="Reset filename">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+            </svg>
+          </button>
+        </div>
+        <button class="btn btn-secondary enc-download-btn" onclick="redownloadVault()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download Again with This Name
+        </button>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════
+         DECRYPT TAB
+    ══════════════════════════════════════════ -->
+    <div class="panel-section" id="section-decrypt">
+
+      <div class="section-title">Open vault file</div>
+
+      <!-- Drop zone -->
+      <div class="drop-zone" id="dec-drop" ondragover="handleDragOver(event,'dec-drop')" ondragleave="handleDragLeave('dec-drop')" ondrop="handleDrop(event,'dec')">
+        <input type="file" id="dec-file-input" accept=".vault" onchange="handleFileSelect(event,'dec')" aria-label="Select .vault file">
+        <div class="drop-zone-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2"/>
+            <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+            <path d="M15 2l1 1-1 1"/>
+          </svg>
+        </div>
+        <div class="drop-zone-title">Drop .vault file here or click to browse</div>
+        <div class="drop-zone-sub">Only .vault encrypted files are accepted</div>
+      </div>
+
+      <!-- File chip -->
+      <div class="file-chip" id="dec-file-chip">
+        <div class="file-chip-icon" style="color:var(--yellow);border-color:var(--yellow);background:var(--yellow-dim)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+        <div class="file-chip-info">
+          <div class="file-chip-name" id="dec-chip-name">—</div>
+          <div class="file-chip-meta" id="dec-chip-meta">—</div>
+        </div>
+        <button class="file-chip-remove" onclick="clearFile('dec')" aria-label="Remove file">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="section-title">Enter password</div>
+
+      <!-- Password -->
+      <div class="field-group">
+        <label class="field-label" for="dec-password">Password</label>
+        <div class="field-wrap">
+          <input class="field-input has-btn" type="password" id="dec-password" placeholder="Enter vault password" autocomplete="current-password" onkeydown="if(event.key==='Enter')decryptFile()">
+          <button class="field-eye-btn" onclick="toggleEye('dec-password',this)" aria-label="Toggle password visibility" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Decrypt Button -->
+      <button class="btn btn-primary" id="dec-btn" onclick="decryptFile()" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/><path d="M15 2l1 1-1 1"/></svg>
+        Unlock Vault File
+      </button>
+
+      <!-- Progress -->
+      <div class="progress-wrap" id="dec-progress">
+        <div class="progress-label">
+          <span id="dec-progress-label">Deriving key…</span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill indeterminate"></div>
+        </div>
+      </div>
+
+      <!-- Alerts -->
+      <div class="alert alert-error" id="dec-error">
+        <div class="alert-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <span id="dec-error-msg">Invalid password or corrupted file.</span>
+      </div>
+
+      <!-- DECRYPTED RESULT -->
+      <div class="decrypt-result" id="decrypt-result">
+        <div class="divider"></div>
+        <div class="result-card">
+          <div class="result-card-header">
+            <div class="result-file-icon" id="result-icon">📄</div>
+            <div>
+              <div class="result-file-name" id="result-filename">—</div>
+              <div class="result-file-meta">
+                <span class="meta-badge" id="result-type">—</span>
+                <span class="meta-badge" id="result-size">—</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="rename-section">
+            <div class="rename-row" title="Edit name (extension is locked)">
+              <span class="rename-label">Save as</span>
+              <input class="rename-input" type="text" id="rename-input" placeholder="filename" spellcheck="false" autocomplete="off">
+              <span class="rename-ext" id="dec-rename-ext"></span>
+              <button class="rename-reset" onclick="resetRename()" title="Reset to original filename" aria-label="Reset filename">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                  <path d="M3 3v5h5"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button class="btn btn-secondary" id="btn-view" onclick="viewFile()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              View
+            </button>
+            <button class="btn btn-secondary" id="btn-newtab" onclick="openInNewTab()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              New Tab
+            </button>
+            <button class="btn btn-primary" style="flex:1.5" onclick="downloadDecrypted()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download Original
+            </button>
+          </div>
+        </div>
+
+        <!-- Inline preview -->
+        <div class="preview-area" id="preview-area">
+          <div class="preview-toolbar">
+            <span class="preview-title">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              Inline Preview — not saved to disk
+            </span>
+            <button class="preview-close" onclick="closePreview()" aria-label="Close preview">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="preview-content" id="preview-content"></div>
+        </div>
+
+        <div class="alert alert-info" id="no-preview-alert" style="margin-top:12px">
+          <div class="alert-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          </div>
+          <span>Preview is not available for this file type. Use <strong>Download Original</strong> to access the file.</span>
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- /panel -->
+
+  <!-- SECURITY BADGES -->
+  <div class="security-row">
+    <span class="sec-badge"><span class="sec-badge-dot"></span>AES-256-GCM</span>
+    <span class="sec-badge"><span class="sec-badge-dot"></span>PBKDF2 · 200k iter</span>
+    <span class="sec-badge"><span class="sec-badge-dot"></span>Random Salt + IV</span>
+    <span class="sec-badge"><span class="sec-badge-dot"></span>100% Local</span>
+    <span class="sec-badge"><span class="sec-badge-dot"></span>No Network</span>
+  </div>
+
+</div><!-- /app-wrapper -->
+
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════════════════ */
+const state = {
+  enc: { file: null, vaultBuffer: null, originalVaultName: null },
+  dec: { file: null, decryptedBuffer: null, originalName: null, originalMime: null }
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   CONSTANTS
+═══════════════════════════════════════════════════════════════ */
+const PBKDF2_ITERATIONS = 200_000;
+const SALT_BYTES        = 32;  // 256-bit salt
+const IV_BYTES          = 12;  // 96-bit IV (GCM standard)
+const MAGIC             = 'VAULT1'; // File format identifier
+
+/* ═══════════════════════════════════════════════════════════════
+   THEME TOGGLE
+═══════════════════════════════════════════════════════════════ */
+function toggleTheme() {
+  const isLight = document.documentElement.classList.toggle('light');
+  try { localStorage.setItem('vault-theme', isLight ? 'light' : 'dark'); } catch {}
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FILENAME UTILITIES — stem / extension splitting
+═══════════════════════════════════════════════════════════════ */
+
+/**
+ * Split a filename into { stem, ext }.
+ * "report.xlsx.vault" → { stem: "report.xlsx", ext: ".vault" }
+ * "photo.jpg"         → { stem: "photo",        ext: ".jpg"   }
+ * "README"            → { stem: "README",        ext: ""       }
+ */
+function splitFilename(name) {
+  const lastDot = name.lastIndexOf('.');
+  if (lastDot <= 0) return { stem: name, ext: '' };
+  return { stem: name.slice(0, lastDot), ext: name.slice(lastDot) };
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DECRYPT RENAME HELPERS
+═══════════════════════════════════════════════════════════════ */
+function populateRename(filename) {
+  const { stem, ext } = splitFilename(filename || '');
+  const inp = document.getElementById('rename-input');
+  const badge = document.getElementById('dec-rename-ext');
+  if (inp)   inp.value      = stem;
+  if (badge) badge.textContent = ext;
+  // hide badge if no extension
+  if (badge) badge.style.display = ext ? '' : 'none';
+}
+
+function resetRename() {
+  populateRename(state.dec.originalName || '');
+  document.getElementById('rename-input').focus();
+}
+
+/** Returns the full final filename for decrypt download (stem from input + locked ext) */
+function getDownloadName() {
+  const inp   = document.getElementById('rename-input');
+  const badge = document.getElementById('dec-rename-ext');
+  const stem  = inp   ? inp.value.trim() : '';
+  const ext   = badge ? badge.textContent : '';
+  const { stem: origStem } = splitFilename(state.dec.originalName || 'decrypted_file');
+  return (stem || origStem) + ext;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ENCRYPT RENAME HELPERS
+═══════════════════════════════════════════════════════════════ */
+function populateEncRename(vaultFilename) {
+  // vaultFilename = "photo.jpg.vault" → stem = "photo.jpg", ext = ".vault"
+  const { stem, ext } = splitFilename(vaultFilename);
+  const inp   = document.getElementById('enc-rename-input');
+  const badge = document.getElementById('enc-rename-ext');
+  if (inp)   inp.value        = stem;
+  if (badge) badge.textContent = ext || '.vault';
+}
+
+function resetEncRename() {
+  populateEncRename(state.enc.originalVaultName || '');
+  document.getElementById('enc-rename-input').focus();
+}
+
+/** Returns the full final vault filename for re-download */
+function getEncDownloadName() {
+  const inp   = document.getElementById('enc-rename-input');
+  const badge = document.getElementById('enc-rename-ext');
+  const stem  = inp   ? inp.value.trim() : '';
+  const ext   = badge ? badge.textContent : '.vault';
+  const { stem: origStem } = splitFilename(state.enc.originalVaultName || 'encrypted.vault');
+  return (stem || origStem) + ext;
+}
+
+/** Re-download the vault buffer under a (possibly renamed) filename */
+function redownloadVault() {
+  if (!state.enc.vaultBuffer) return;
+  const blob = new Blob([state.enc.vaultBuffer], { type: 'application/octet-stream' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = getEncDownloadName();
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TAB SWITCHING
+═══════════════════════════════════════════════════════════════ */
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+  });
+  document.querySelectorAll('.panel-section').forEach(s => s.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('tab-' + tab).setAttribute('aria-selected', 'true');
+  document.getElementById('section-' + tab).classList.add('active');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DRAG & DROP
+═══════════════════════════════════════════════════════════════ */
+function handleDragOver(e, id) {
+  e.preventDefault();
+  document.getElementById(id).classList.add('dragover');
+}
+
+function handleDragLeave(id) {
+  document.getElementById(id).classList.remove('dragover');
+}
+
+function handleDrop(e, mode) {
+  e.preventDefault();
+  const id = mode + '-drop';
+  document.getElementById(id).classList.remove('dragover');
+  const files = e.dataTransfer.files;
+  if (!files || !files[0]) return;
+  setFile(files[0], mode);
+}
+
+function handleFileSelect(e, mode) {
+  const f = e.target.files && e.target.files[0];
+  if (f) setFile(f, mode);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   FILE MANAGEMENT
+═══════════════════════════════════════════════════════════════ */
+function setFile(file, mode) {
+  if (mode === 'dec' && !file.name.endsWith('.vault')) {
+    showAlert('dec-error', 'Please select a valid .vault file.');
+    return;
+  }
+  hideAlert('dec-error');
+  hideAlert('enc-error');
+  // Hide enc success card when a new file is selected
+  if (mode === 'enc') {
+    document.getElementById('enc-result-card').classList.remove('visible');
+    state.enc.vaultBuffer       = null;
+    state.enc.originalVaultName = null;
+  }
+
+  state[mode].file = file;
+
+  const chip = document.getElementById(mode + '-file-chip');
+  chip.classList.add('visible');
+  document.getElementById(mode + '-chip-name').textContent = file.name;
+  document.getElementById(mode + '-chip-meta').textContent = formatSize(file.size) + '  ·  ' + (file.type || 'binary');
+
+  updateEncBtn();
+  updateDecBtn();
+
+  // Reset decryption result when a new vault file is loaded
+  if (mode === 'dec') {
+    document.getElementById('decrypt-result').classList.remove('visible');
+    closePreview();
+    hideAlert('no-preview-alert');
+    state.dec.decryptedBuffer = null;
+  }
+}
+
+function clearFile(mode) {
+  state[mode].file = null;
+  document.getElementById(mode + '-file-chip').classList.remove('visible');
+  document.getElementById(mode + '-file-input').value = '';
+  if (mode === 'dec') {
+    document.getElementById('decrypt-result').classList.remove('visible');
+    closePreview();
+    state.dec.decryptedBuffer = null;
+  }
+  updateEncBtn();
+  updateDecBtn();
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024)       return bytes + ' B';
+  if (bytes < 1048576)    return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + ' MB';
+  return (bytes / 1073741824).toFixed(2) + ' GB';
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PASSWORD UI
+═══════════════════════════════════════════════════════════════ */
+function toggleEye(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  const showing = inp.type === 'text';
+  inp.type = showing ? 'password' : 'text';
+  btn.innerHTML = showing
+    ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`
+    : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+}
+
+function passwordStrength(pwd) {
+  if (!pwd) return 0;
+  let score = 0;
+  if (pwd.length >= 8)  score++;
+  if (pwd.length >= 14) score++;
+  if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) score++;
+  if (/[0-9]/.test(pwd)) score++;
+  if (/[^A-Za-z0-9]/.test(pwd)) score++;
+  return Math.min(4, score);
+}
+
+function updateStrength() {
+  const pwd = document.getElementById('enc-password').value;
+  const score = passwordStrength(pwd);
+  const bar = document.getElementById('strength-bar');
+  bar.className = 'strength-bar strength-' + score;
+  const labels = ['Enter a password', 'Too weak', 'Weak', 'Moderate', 'Strong'];
+  document.getElementById('strength-label').textContent = labels[score];
+  checkMatch();
+  updateEncBtn();
+}
+
+function checkMatch() {
+  const p1 = document.getElementById('enc-password').value;
+  const p2 = document.getElementById('enc-confirm').value;
+  const hint = document.getElementById('match-hint');
+  if (!p2) { hint.textContent = ''; hint.className = 'field-hint'; return; }
+  if (p1 === p2) {
+    hint.textContent = '✓ Passwords match';
+    hint.className = 'field-hint ok';
+  } else {
+    hint.textContent = '✗ Passwords do not match';
+    hint.className = 'field-hint err';
+  }
+  updateEncBtn();
+}
+
+function updateEncBtn() {
+  const hasFile = !!state.enc.file;
+  const p1 = document.getElementById('enc-password').value;
+  const p2 = document.getElementById('enc-confirm').value;
+  const strong = passwordStrength(p1) >= 1;
+  const match = p1 === p2 && p1.length > 0;
+  document.getElementById('enc-btn').disabled = !(hasFile && strong && match);
+}
+
+function updateDecBtn() {
+  document.getElementById('dec-btn').disabled = !state.dec.file;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ALERT HELPERS
+═══════════════════════════════════════════════════════════════ */
+function showAlert(id, msg) {
+  const el = document.getElementById(id);
+  if (msg !== undefined) {
+    const span = el.querySelector('span');
+    if (span) span.innerHTML = msg;
+  }
+  el.classList.add('visible');
+}
+
+function hideAlert(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('visible');
+}
+
+function showProgress(mode, label) {
+  const w = document.getElementById(mode + '-progress');
+  const lbl = document.getElementById(mode + '-progress-label');
+  if (lbl && label) lbl.textContent = label;
+  w.classList.add('visible');
+}
+
+function hideProgress(mode) {
+  document.getElementById(mode + '-progress').classList.remove('visible');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CRYPTO UTILITIES
+═══════════════════════════════════════════════════════════════ */
+
+/**
+ * Derive an AES-256-GCM key from a password and salt using PBKDF2.
+ * @param {string}     password
+ * @param {Uint8Array} salt
+ * @returns {Promise<CryptoKey>}
+ */
+async function deriveKey(password, salt) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+/**
+ * Encode a string to UTF-8 bytes and prepend a 2-byte length prefix.
+ */
+function encodeString(str) {
+  const bytes = new TextEncoder().encode(str);
+  const buf   = new Uint8Array(2 + bytes.length);
+  const view  = new DataView(buf.buffer);
+  view.setUint16(0, bytes.length, false);
+  buf.set(bytes, 2);
+  return buf;
+}
+
+/**
+ * Read a length-prefixed string from a DataView at a given offset.
+ * Returns { value: string, nextOffset: number }.
+ */
+function decodeString(view, offset) {
+  const len  = view.getUint16(offset, false);
+  const bytes = new Uint8Array(view.buffer, view.byteOffset + offset + 2, len);
+  return { value: new TextDecoder().decode(bytes), nextOffset: offset + 2 + len };
+}
+
+/**
+ * Package format (binary):
+ *  [6 bytes]  Magic: "VAULT1"
+ *  [2+N bytes] Filename (length-prefixed UTF-8)
+ *  [2+M bytes] MIME type (length-prefixed UTF-8)
+ *  [32 bytes]  Salt
+ *  [12 bytes]  IV
+ *  [rest]      AES-GCM ciphertext (includes 16-byte GCM auth tag)
+ */
+async function buildVaultPackage(filename, mime, salt, iv, ciphertext) {
+  const magic   = new TextEncoder().encode(MAGIC);
+  const namePart = encodeString(filename);
+  const mimePart = encodeString(mime || 'application/octet-stream');
+
+  const total = magic.length + namePart.length + mimePart.length + salt.length + iv.length + ciphertext.byteLength;
+  const out   = new Uint8Array(total);
+  let pos = 0;
+
+  out.set(magic,          pos); pos += magic.length;
+  out.set(namePart,       pos); pos += namePart.length;
+  out.set(mimePart,       pos); pos += mimePart.length;
+  out.set(salt,           pos); pos += salt.length;
+  out.set(iv,             pos); pos += iv.length;
+  out.set(new Uint8Array(ciphertext), pos);
+
+  return out.buffer;
+}
+
+/**
+ * Parse a vault package binary.
+ * Returns { filename, mime, salt, iv, ciphertext } or throws on invalid format.
+ */
+function parseVaultPackage(buffer) {
+  const bytes  = new Uint8Array(buffer);
+  const view   = new DataView(buffer);
+
+  // Verify magic
+  const magic = new TextDecoder().decode(bytes.slice(0, 6));
+  if (magic !== MAGIC) throw new Error('Not a valid .vault file (bad magic).');
+
+  let offset = 6;
+
+  // Filename
+  const nameResult = decodeString(view, offset);
+  offset = nameResult.nextOffset;
+
+  // MIME
+  const mimeResult = decodeString(view, offset);
+  offset = mimeResult.nextOffset;
+
+  // Salt (32 bytes)
+  const salt = new Uint8Array(buffer, offset, SALT_BYTES);
+  offset += SALT_BYTES;
+
+  // IV (12 bytes)
+  const iv = new Uint8Array(buffer, offset, IV_BYTES);
+  offset += IV_BYTES;
+
+  // Ciphertext (rest of buffer)
+  const ciphertext = buffer.slice(offset);
+
+  return {
+    filename:   nameResult.value,
+    mime:       mimeResult.value,
+    salt:       new Uint8Array(salt), // copy
+    iv:         new Uint8Array(iv),   // copy
+    ciphertext
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ENCRYPT
+═══════════════════════════════════════════════════════════════ */
+async function encryptFile() {
+  hideAlert('enc-error');
+  document.getElementById('enc-result-card').classList.remove('visible');
+  hideProgress('enc');
+
+  const file     = state.enc.file;
+  const password = document.getElementById('enc-password').value;
+
+  if (!file) { showAlert('enc-error', 'Please select a file.'); return; }
+  if (!password) { showAlert('enc-error', 'Please enter a password.'); return; }
+
+  document.getElementById('enc-btn').disabled = true;
+  showProgress('enc', 'Deriving key (PBKDF2)…');
+
+  try {
+    // 1. Read file
+    const plaintext = await file.arrayBuffer();
+
+    // 2. Generate random salt and IV
+    const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
+    const iv   = crypto.getRandomValues(new Uint8Array(IV_BYTES));
+
+    // 3. Derive key
+    const key = await deriveKey(password, salt);
+
+    document.getElementById('enc-progress-label').textContent = 'Encrypting with AES-256-GCM…';
+
+    // 4. Encrypt
+    const ciphertext = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      key,
+      plaintext
+    );
+
+    document.getElementById('enc-progress-label').textContent = 'Packaging vault file…';
+
+    // 5. Build package
+    const vaultBuffer = await buildVaultPackage(
+      file.name,
+      file.type || 'application/octet-stream',
+      salt,
+      iv,
+      ciphertext
+    );
+
+    // 6. Store vault buffer in state for re-download
+    const vaultName = file.name + '.vault';
+    state.enc.vaultBuffer      = vaultBuffer;
+    state.enc.originalVaultName = vaultName;
+
+    // 7. Trigger initial download
+    const blob     = new Blob([vaultBuffer], { type: 'application/octet-stream' });
+    const url      = URL.createObjectURL(blob);
+    const a        = document.createElement('a');
+    a.href         = url;
+    a.download     = vaultName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    hideProgress('enc');
+
+    // 8. Show rename/re-download card
+    document.getElementById('enc-result-filename').textContent = vaultName;
+    document.getElementById('enc-result-meta').textContent =
+      formatSize(vaultBuffer.byteLength) + ' · AES-256-GCM · saved to disk';
+    populateEncRename(vaultName);
+    document.getElementById('enc-result-card').classList.add('visible');
+    document.getElementById('enc-result-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+  } catch (err) {
+    hideProgress('enc');
+    showAlert('enc-error', 'Encryption failed: ' + err.message);
+    console.error('[Vault Encrypt]', err);
+  } finally {
+    updateEncBtn();
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DECRYPT
+═══════════════════════════════════════════════════════════════ */
+async function decryptFile() {
+  hideAlert('dec-error');
+  document.getElementById('decrypt-result').classList.remove('visible');
+  closePreview();
+  hideAlert('no-preview-alert');
+
+  const file     = state.dec.file;
+  const password = document.getElementById('dec-password').value;
+
+  if (!file) { showAlert('dec-error', 'Please select a .vault file.'); return; }
+  if (!password) { showAlert('dec-error', 'Please enter the vault password.'); return; }
+
+  document.getElementById('dec-btn').disabled = true;
+  showProgress('dec', 'Deriving key (PBKDF2)…');
+
+  try {
+    // 1. Read vault file
+    const buffer = await file.arrayBuffer();
+
+    // 2. Parse
+    let parsed;
+    try {
+      parsed = parseVaultPackage(buffer);
+    } catch (e) {
+      throw new Error('Invalid or corrupted .vault file: ' + e.message);
+    }
+
+    const { filename, mime, salt, iv, ciphertext } = parsed;
+
+    document.getElementById('dec-progress-label').textContent = 'Decrypting…';
+
+    // 3. Derive key from entered password
+    const key = await deriveKey(password, salt);
+
+    // 4. Decrypt — AES-GCM will throw if auth tag doesn't match (wrong password or corruption)
+    let plaintext;
+    try {
+      plaintext = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        ciphertext
+      );
+    } catch {
+      throw new Error('__AUTH_FAIL__');
+    }
+
+    // 5. Store decrypted data in memory only — never written to disk automatically
+    state.dec.decryptedBuffer = plaintext;
+    state.dec.originalName    = filename;
+    state.dec.originalMime    = mime;
+
+    hideProgress('dec');
+    renderDecryptResult(filename, mime, plaintext.byteLength);
+
+  } catch (err) {
+    hideProgress('dec');
+    if (err.message === '__AUTH_FAIL__') {
+      showAlert('dec-error', '<strong>Invalid password or corrupted file.</strong> No content was revealed.');
+    } else {
+      showAlert('dec-error', err.message);
+    }
+    console.error('[Vault Decrypt]', err);
+  } finally {
+    document.getElementById('dec-btn').disabled = false;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DECRYPTION RESULT UI
+═══════════════════════════════════════════════════════════════ */
+function renderDecryptResult(filename, mime, size) {
+  document.getElementById('result-filename').textContent = filename;
+  document.getElementById('result-type').textContent     = mime || 'Unknown type';
+  document.getElementById('result-size').textContent     = formatSize(size);
+  document.getElementById('result-icon').textContent     = fileEmoji(mime, filename);
+
+  // Pre-fill rename input with original filename
+  populateRename(filename);
+
+  // Show/hide view-related buttons based on previewability
+  const canPreview  = isPreviewable(mime, filename);
+  const canNewTab   = canPreview;
+  document.getElementById('btn-view').style.display   = canPreview ? '' : 'none';
+  document.getElementById('btn-newtab').style.display = canNewTab  ? '' : 'none';
+
+  document.getElementById('decrypt-result').classList.add('visible');
+  document.getElementById('decrypt-result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function isPreviewable(mime, filename) {
+  if (!mime) return false;
+  const ext = (filename || '').split('.').pop().toLowerCase();
+  return mime.startsWith('image/') ||
+         mime === 'application/pdf' ||
+         mime.startsWith('text/') ||
+         ['txt','csv','json','xml','md','log','html','js','css','ts','py','java','sh','yaml','yml'].includes(ext);
+}
+
+function isText(mime, filename) {
+  const ext = (filename || '').split('.').pop().toLowerCase();
+  return mime && mime.startsWith('text/') ||
+    ['txt','csv','json','xml','md','log','js','css','ts','py','java','sh','yaml','yml','html'].includes(ext);
+}
+
+function fileEmoji(mime, filename) {
+  if (!mime) return '📄';
+  if (mime.startsWith('image/')) return '🖼️';
+  if (mime === 'application/pdf') return '📑';
+  if (mime.startsWith('text/')) return '📝';
+  if (mime.includes('zip') || mime.includes('compressed')) return '🗜️';
+  if (mime.includes('spreadsheet') || (filename||'').match(/\.xlsx?$/i)) return '📊';
+  if (mime.includes('presentation') || (filename||'').match(/\.pptx?$/i)) return '📽️';
+  if (mime.includes('word') || (filename||'').match(/\.docx?$/i)) return '📄';
+  return '📦';
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   VIEW / DOWNLOAD / NEW TAB
+═══════════════════════════════════════════════════════════════ */
+function getDecryptedBlob() {
+  if (!state.dec.decryptedBuffer) return null;
+  return new Blob([state.dec.decryptedBuffer], { type: state.dec.originalMime || 'application/octet-stream' });
+}
+
+function viewFile() {
+  const mime     = state.dec.originalMime || '';
+  const filename = state.dec.originalName || '';
+  const buf      = state.dec.decryptedBuffer;
+  if (!buf) return;
+
+  const previewArea   = document.getElementById('preview-area');
+  const previewContent = document.getElementById('preview-content');
+  previewContent.innerHTML = '';
+  hideAlert('no-preview-alert');
+
+  if (mime.startsWith('image/')) {
+    const blob = getDecryptedBlob();
+    const url  = URL.createObjectURL(blob);
+    const img  = document.createElement('img');
+    img.className = 'preview-img';
+    img.src = url;
+    img.alt = filename;
+    img.onload = () => URL.revokeObjectURL(url); // free after render
+    previewContent.appendChild(img);
+    previewArea.classList.add('visible');
+
+  } else if (mime === 'application/pdf') {
+    const blob   = getDecryptedBlob();
+    const url    = URL.createObjectURL(blob);
+    const iframe = document.createElement('iframe');
+    iframe.className = 'preview-pdf';
+    iframe.src = url;
+    iframe.title = filename;
+    // Note: object URL will live until preview closes
+    previewArea.classList.add('visible');
+    previewContent.appendChild(iframe);
+    // store url to revoke on close
+    previewArea.dataset.blobUrl = url;
+
+  } else if (isText(mime, filename)) {
+    const decoder = new TextDecoder('utf-8', { fatal: false });
+    const text    = decoder.decode(buf);
+    const pre     = document.createElement('pre');
+    pre.className = 'preview-text';
+    pre.textContent = text;
+    previewContent.appendChild(pre);
+    previewArea.classList.add('visible');
+
+  } else {
+    showAlert('no-preview-alert');
+  }
+}
+
+function closePreview() {
+  const previewArea = document.getElementById('preview-area');
+  // Revoke any stored blob URL (PDF)
+  if (previewArea.dataset.blobUrl) {
+    URL.revokeObjectURL(previewArea.dataset.blobUrl);
+    delete previewArea.dataset.blobUrl;
+  }
+  document.getElementById('preview-content').innerHTML = '';
+  previewArea.classList.remove('visible');
+}
+
+function openInNewTab() {
+  const blob = getDecryptedBlob();
+  if (!blob) return;
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+  // Revoke after a delay (browser needs time to open the tab)
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+function downloadDecrypted() {
+  const blob = getDecryptedBlob();
+  if (!blob) return;
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = getDownloadName();
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HIDE NO-PREVIEW ALERT (for completeness)
+═══════════════════════════════════════════════════════════════ */
+function hideAlert_nopreview() {
+  hideAlert('no-preview-alert');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   INIT — Check Web Crypto availability
+═══════════════════════════════════════════════════════════════ */
+(function init() {
+  if (!window.crypto || !window.crypto.subtle) {
+    document.body.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;padding:32px;text-align:center;font-family:sans-serif;color:#ff4757;background:#0a0c0f;">
+        <div>
+          <div style="font-size:3rem;margin-bottom:16px;">⚠️</div>
+          <h2 style="font-size:1.3rem;margin-bottom:8px;">Web Crypto API not available</h2>
+          <p style="color:#8fa3b8;font-size:0.9rem;">File Vault requires a modern browser with HTTPS or localhost. Please open this page via a secure context.</p>
+        </div>
+      </div>`;
+    return;
+  }
+
+  // Restore saved theme preference
+  try {
+    if (localStorage.getItem('vault-theme') === 'light') {
+      document.documentElement.classList.add('light');
+    }
+  } catch {}
+
+  // Keyboard shortcut: Enter on dec-password
+  document.getElementById('dec-password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') decryptFile();
+  });
+
+  // Enable dec button when password typed
+  document.getElementById('dec-password').addEventListener('input', updateDecBtn);
+  document.getElementById('enc-password').addEventListener('input', updateEncBtn);
+  document.getElementById('enc-confirm').addEventListener('input', updateEncBtn);
+})();
+</script>
+</body>
+</html>
